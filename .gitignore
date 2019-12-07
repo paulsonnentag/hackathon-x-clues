@@ -1,0 +1,6 @@
+!dist/dataset
+dist
+.idea
+.cache
+node_modules
+images
