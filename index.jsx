@@ -1,12 +1,13 @@
 import React from 'react';
 import { render } from 'react-dom';
 import styled from 'styled-components';
-import dataset from './small-dataset';
+import dataset from './dataset';
 import { useDrag, useDrop } from 'react-dnd';
 import { DndProvider } from 'react-dnd';
 import Backend from 'react-dnd-html5-backend';
 import _ from 'lodash/fp';
 import _formatDecimal from 'format-decimal';
+import exhibitionObjects from './exhibition-objects';
 
 
 function formatDecimal(number) {
@@ -21,6 +22,7 @@ function parseYear(year) {
     return parseInt(year, 10);
 }
 
+/*
 const exhibitionObjects = (
     _.flow(
         _.filter(object => object.bilder.length > 0 && object.datierung),
@@ -43,13 +45,19 @@ const exhibitionObjects = (
                 technology: _.map(({ term }) => term, object.techniken),
                 location: retrievalLocation ? retrievalLocation.term : null,
                 era: object.datierung[0].datum,
-                date: `(${formatDecimal(Math.abs(start))} - ${formatDecimal(Math.abs(end))} ${end < 0 ? 'v Chr.' : 'n Chr.'})`
+                date: (!isNaN(start) && !isNaN(end))
+                    ? `(${formatDecimal(Math.abs(start))} - ${formatDecimal(Math.abs(end))} ${end < 0 ? 'v Chr.' : 'n Chr.'})`
+                    : null
             };
         }),
-        _.filter(({ start, end, location }) => start !== undefined && end !== undefined && location !== null),
+        _.filter(({ start, end, location, date }) => date !== null && start !== undefined && end !== undefined && location !== null),
         _.sortBy(({ start }) => start)
-    )(dataset)
+    )(dataset.records)
 );
+ */
+
+
+const fibelObjects = exhibitionObjects.filter(({name, inventoryId}) => name.toLowerCase().indexOf('fibel') !== -1 && inventoryId !== 'C 7696' && inventoryId !== 'C 7695');
 
 const Content = styled.div`
     display: flex;
@@ -120,7 +128,7 @@ const InfoHeadline = styled.div`
 const AppHeader = styled.div`
     font-size: 31.25px;
     padding: 20px;
-`
+`;
 
 const Button = styled.button`
     border: 1px solid #a88a49;;
@@ -222,10 +230,11 @@ class App extends React.Component {
             focusedObjectId: null, //exhibitionObjects[0].id,
             selectedObjects: [], //[exhibitionObjects[0]],
             search: '',
+            tempSearch: '',
             currentEra: exhibitionObjects[0].era
         };
 
-        _.bindAll(['handleDrop', 'handleFocusObject', 'removeFocusedObject', 'handleScroll', 'updateSearch'], this);
+        _.bindAll(['handleDrop', 'handleFocusObject', 'removeFocusedObject', 'handleScroll'], this);
     }
 
     handleDrop(object) {
@@ -264,28 +273,28 @@ class App extends React.Component {
         }
     }
 
-    updateSearch (search) {
-        this.setState({ search });
-
-        setTimeout(() => {
-            this.updateEra();
-        })
-    }
-
     render() {
-        const { selectedObjects, focusedObjectId, search, currentEra } = this.state;
+        const { selectedObjects, focusedObjectId, search, tempSearch, currentEra } = this.state;
         const focusedObject = exhibitionObjects.find(({ id }) => id === focusedObjectId);
-        const filteredExhibitionObjects = _.filter((object) => object.name.indexOf(search) !== -1, exhibitionObjects);
+        const filteredExhibitionObjects = search.toLowerCase() === 'fibel' ? fibelObjects :  exhibitionObjects //_.filter((object) => object.name.toLowerCase().indexOf(search.toLowerCase()) !== -1, exhibitionObjects);
         const resultCount = filteredExhibitionObjects.length;
 
         return (
             <DndProvider backend={Backend}>
                 <Content>
                     <Search>
-                       <Logo/>
+                        <Logo/>
 
                         <SearchInput
-                            onChange={((evt) => this.updateSearch(evt.target.value))}
+                            onChange={((evt) => {
+                                this.setState({ search: evt.target.value });
+
+                                setTimeout(() => {
+                                    this.updateEra();
+                                })
+
+                                //this.updateSearch(evt.target.value);
+                            })}
                             value={search}
                             placeholder={'Stichwort eingeben'}
                         />
@@ -297,7 +306,7 @@ class App extends React.Component {
 
                     <EraInfo>
                         <EraInfoValue>
-                            {currentEra}
+                            {filteredExhibitionObjects.length > 0 ? currentEra : ''}
                         </EraInfoValue>
                     </EraInfo>
 
@@ -412,7 +421,7 @@ function SelectionView({ onDrop, onFocusObject, selectedObjects, focusedObjectId
                     <DropHelpMessageInner>
                         <img src='vase.svg'/>
 
-                        <div style={{paddingLeft: '20px'}}>Ziehe ein Fundstück aus dem Zeitstrahl auf den Untersuchungstisch um es genauer anzuschauen</div>
+                        <div style={{ paddingLeft: '20px' }}>Ziehe ein Fundstück aus dem Zeitstrahl auf den Untersuchungstisch um es genauer anzuschauen</div>
                     </DropHelpMessageInner>
                 </DropHelpMessage>
             )}
